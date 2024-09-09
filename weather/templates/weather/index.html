@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.6.2/css/bulma.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 500px;
+            margin-top: 20px;
+        }
+        #map-container {
+            height: 500px;
+            width: 100%;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <section class="hero is-dark">
+        <div class="hero-body">
+            <div class="container">
+                <h2 class="title"><strong>Vaataavaran</strong> - Weather App</h2>
+                <h1>A Place Where You will get your location weather Info!! </h1>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            {% if messages %}
+                {% for message in messages %}
+                <div class="notification is-danger">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="POST" class="box">
+                {% csrf_token %}
+                {{ form.name }}
+                <button class="button is-info" type="submit">Get Weather</button>
+            </form>
+
+            {% if weather_data %}
+            <div class="box">
+                <h2 class="title">{{ weather_data.city }}</h2>
+                <p>Temperature: {{ weather_data.temperature }}°C</p>
+                <p>Description: {{ weather_data.description }}</p>
+                <figure class="image is-64x64">
+                    <img src="http://openweathermap.org/img/wn/{{ weather_data.icon }}@2x.png" alt="{{ weather_data.description }}">
+                </figure>
+            </div>
+            <div id="map"></div>
+            {% endif %}
+        </div>
+        <div id="map-container">
+                        <iframe
+                            src="https://nullschool.net/#current/wind/surface/level/overlay=wind/orthographic={{ weather_data.longitude }},{{ weather_data.latitude }},10"
+                            frameborder="0"
+                            width="100%"
+                            height="100%">
+                        </iframe>
+        </div>
+    </section>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            {% if weather_data %}
+            var map = L.map('map').setView([{{ weather_data.latitude }}, {{ weather_data.longitude }}], 10);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+            }).addTo(map);
+
+            var marker = L.marker([{{ weather_data.latitude }}, {{ weather_data.longitude }}]).addTo(map)
+                .bindPopup('<b>{{ weather_data.city }}</b><br>{{ weather_data.description }}')
+                .openPopup();
+
+            map.on('click', function(e) {
+                var lat = e.latlng.lat;
+                var lng = e.latlng.lng;
+                fetchWeatherForLocation(lat, lng);
+            });
+
+            function fetchWeatherForLocation(lat, lng) {
+                var api_key = '{{ api_key }}';  // Use your actual API key here
+                var url = `http://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&units=metric&appid=${api_key}`;
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        var content = `<b>${data.name}</b><br>Temperature: ${data.main.temp}°C<br>${data.weather[0].description}`;
+                        L.marker([lat, lng]).addTo(map)
+                            .bindPopup(content)
+                            .openPopup();
+                    })
+                    .catch(error => console.error('Error fetching weather data:', error));
+            }
+            {% endif %}
+        });
+    </script>
+</body>
+</html>
